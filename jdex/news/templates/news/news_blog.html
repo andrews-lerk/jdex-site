@@ -50,6 +50,10 @@
       {% for p in model %}
       <h6>{{p.title}}</h6>
       <p>{{ p.pub_date }}</p>
+      <p>Views: {{ p.count }}</p>
+      {% for i in p.cat.all %}
+      #{{ i.tag }}
+      {% endfor %}
       <p>{{p.text | truncatewords:30}}</p><p class="more"><a href='{{p.get_absolute_url}}'>Continue Reading »</a></p>
 
       <img src={{p.img.url}}>
@@ -93,12 +97,20 @@
     <!-- ################################################################################################ -->
     <div class="sidebar one_quarter">
       <!-- ################################################################################################ -->
-      <h1>Categories</h1>
+      <h1>Tags</h1>
       <div class="sdb_holder">
-        <p class="more"><a href="{% url 'news' %}">All</a></p>
-        {% for i in cat_models %}
-        <p class="more"><a href={{i.get_absolute_url}}>{{i.category}}</a></p>
-        {% endfor %}
+        <p><a href="{% url 'news' %}">All</a></p>
+        <form method="post" action="{% url 'tag_view' %}">
+          {% for p in cat_models %}
+          {% csrf_token %}
+          {% if p.slug not in check %}
+          <p><input name="name" value="{{ p.slug }}" type="checkbox">{{ p.tag }}</p>
+           {% else %}
+          <p><input name="name" value="{{ p.slug }}" type="checkbox" checked>{{ p.tag }}</p>
+          {% endif %}
+          {% endfor %}
+        <p><input type="submit" value="Submit"></p>
+        </form>
       </div>
       <div class="sdb_holder">
         <article>

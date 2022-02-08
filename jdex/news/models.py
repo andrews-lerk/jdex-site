@@ -8,13 +8,13 @@ from django.urls import reverse
 user = User
 
 # Create your models here.
-class Category(models.Model):
+class Tag(models.Model):
 
-    category = models.CharField(max_length=255, verbose_name='category_name')
+    tag = models.CharField(max_length=255, verbose_name='tag_name')
     slug = models.SlugField(max_length=255, null=True, verbose_name='catURL')
 
     def __str__(self):
-        return self.category
+        return self.tag
 
     def get_absolute_url(self):
         return reverse('cat_view', kwargs={'cat_slug': self.slug})
@@ -27,7 +27,12 @@ class NewPost(models.Model):
     img = models.ImageField(null=True)
     pub_date = models.DateTimeField(auto_now=False, auto_now_add=False)
     comments = GenericRelation('Comment')
-    cat = models.ForeignKey(Category, on_delete=SET_NULL, null=True, verbose_name='category', related_name='get_posts')
+    cat = models.ManyToManyField(Tag, verbose_name='tag', related_name='get_posts')
+    count = PositiveIntegerField(default=0)
+
+    @property
+    def tag(self):
+        return self.cat.objects.all()
 
     def __str__(self):
         return self.title

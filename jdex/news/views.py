@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 from django.http import FileResponse
 
 from .models import *
+from .decorators import counted
 
 
 def veiw_home_page(request):
@@ -19,39 +20,49 @@ def veiw_home_page(request):
 
 
 def veiw_news_page(request):
+    """ View all news """
     question_form = UserQuestionForm
     model = NewPost.objects.order_by('-pk')
-    side_bar=model[:10]
-    paginate = Paginator(model, 3)
+    side_bar = model[:10]
+    paginate = Paginator(model, 2)
     page_number = request.GET.get('page')
     page_obj = paginate.get_page(page_number)
-    cat_models = Category.objects.order_by('-pk')
-    return render(request, 'news/news_blog.html', {'ff': question_form, 'model': page_obj, 'cat_models': cat_models, 'model_': model, 'side_bar': side_bar})
+    cat_models = Tag.objects.order_by('-pk')
+    return render(request, 'news/news_blog.html',
+                  {'ff': question_form, 'model': page_obj, 'cat_models': cat_models, 'model_': model,
+                   'side_bar': side_bar})
 
 
-def veiw_category_page(request, cat_slug):
+def veiw_tag_page(request):
+    """ View news via tag filter  """
     question_form = UserQuestionForm
-    models = NewPost.objects.filter(cat__slug=cat_slug).order_by('-pk')
+    models = NewPost.objects.filter(cat__slug__in=request.POST.getlist('name')).distinct()
     side_bar = models[:10]
-    paginate = Paginator(models, 1)
-    page_number = request.GET.get('page')
-    page_obj = paginate.get_page(page_number)
-    cat_models = Category.objects.order_by('-pk')
-    model = NewPost.objects.all()
-    return render(request, 'news/news_blog.html', {'ff': question_form, 'model': page_obj, 'cat_models': cat_models, 'model_': model, 'side_bar': side_bar})
+    cat_models = Tag.objects.order_by('-pk')
+    data = {'ff': question_form, 'model': models, 'cat_models': cat_models,
+                   'side_bar': side_bar}
+    if request.POST:
+        lst_checked = request.POST.getlist('name')
+        data['check'] = lst_checked
+    return render(request, 'news/news_blog.html', data)
 
 
+@counted
 def veiw_personal_page(request, post_slug):
+    """ View detail new """
     question_form = UserQuestionForm
     model = NewPost.objects.filter(slug=post_slug)
     comments = model.first().comments.all()
     comment_form = WriteCommentForm(request.POST or None)
-    return render(request, 'news/new_personal.html', {'ff': question_form, 'model': model, 'comments': comments, 'form': comment_form})
+    return render(request, 'news/new_personal.html',
+                  {'ff': question_form, 'model': model, 'comments': comments, 'form': comment_form})
+
 
 def view_apps_page(request):
     question_form = UserQuestionForm
     projects = Applications.objects.all()
     return render(request, 'news/apps_page.html', {'ff': question_form, 'pr': projects})
+
 
 class SignUp(CreateView):
     form_class = RegisterForm
@@ -90,6 +101,7 @@ def create_comment(request):
         comment.save()
     return redirect('personal_new', post_slug=slug)
 
+
 def create_question(request):
     form = UserQuestionForm(request.POST or None)
     if form.is_valid():
@@ -104,21 +116,23 @@ def delete_comment(request, comment_id):
     Comment.objects.filter(pk=comment_id).delete()
     return redirect(request.META['HTTP_REFERER'])
 
+
 def view_profile(request):
     question_form = UserQuestionForm
-    form__ = ChangeUsername(request.POST if request.POST and request.POST['submit']=='Change name' else None)
-    form_ = ChangePass(request.POST if request.POST and request.POST['submit']=='Change pass' else None)
-    param={'form': form__,
-           'change': form_,
-           'ff': question_form
-           }
-    check = True if request.POST and request.POST['submit']=='Change name' else False
+    form__ = ChangeUsername(request.POST if request.POST and request.POST['submit'] == 'Change name' else None)
+    form_ = ChangePass(request.POST if request.POST and request.POST['submit'] == 'Change pass' else None)
+    param = {'form': form__,
+             'change': form_,
+             'ff': question_form
+             }
+    check = True if request.POST and request.POST['submit'] == 'Change name' else False
     if check:
-        param['error']='*This name is already exists!'
+        param['error'] = '*This name is already exists!'
     if ChangePass(request.POST):
-        param['err']=form_
+        param['err'] = form_
     print(request.POST)
     return render(request, 'news/profile.html', param)
+
 
 def change_username(request):
     form__ = ChangeUsername(request.POST or None)
@@ -130,6 +144,7 @@ def change_username(request):
             print(request.POST['submit'])
             return view_profile(request)
 
+
 def change_pass(request):
     form = ChangePass(request.POST or None)
     if form.is_valid() and form.cleaned_data['new_pass'] == form.cleaned_data['new_pass_confirmation']:
@@ -139,10 +154,12 @@ def change_pass(request):
         return redirect('signin')
     return view_profile(request)
 
+
 def download(request, file_id):
     file = Applications.objects.filter(pk=file_id)
     response = FileResponse(open(file.first().file.path, 'rb'))
     return response
+
 
 def download_resume(request):
     file = Resume.objects.first()
